@@ -1,0 +1,200 @@
+---
+title: "Asger_Krogh_2021"
+author: "Asger Krogh"
+date: "04 01 2022"
+output: html_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Find the correct custom package, include=FALSE}
+#if(!require("devtools")) install.packages("devtools")
+#devtools::install_github("sebastianbarfort/mapDK")
+#devtools::install_github("56north/leafletDK") # install devtools if needed
+```
+
+
+```{r install and load packages, include=FALSE, echo = FALSE}
+library(ggplot2)
+library(mapDK)
+library(tidyverse)
+library(gganimate)
+library(leafletDK)
+library(leaflet.extras)
+library(readr)
+library(knitr)
+library(stringi)
+```
+
+
+Loading of Data.
+The data had been downloaded with an API from "Danmarkstatistik" into OpenRefine and cleaned. 
+I will the rest of the modifying here in RStudio.
+
+I load the data from the year 2007, of number of people, aged 18, who have moved to Copenhagen. This is then specifies in which municipality they come from.
+Then I check the first 6 rows to confirm it looks correct and to see the specifications of the colloum.
+
+```{r load data fra årene 2006-2020}
+data07 <- read_csv("aar2007.csv",show_col_types = FALSE)
+
+head(data07)
+```
+
+I here want to see how big a percentage of the combined municipality population they people who moves away constitute.
+I again use an API from Danmarkstatistik to find the total population of 18 year old from each municipality.
+
+```{r load new API and mutate the colloum in here}
+aar1808 <- read_csv("antal18.csv", show_col_types = FALSE)
+head(aar1808)
+```
+
+I merge the two different datasets with the mutate function, as we can see below, the data07 set now has 5 variables
+```{r mutate from data07 to aar1808}
+data07 %>% 
+  mutate(Total18=aar1808$INDHOLD) -> data07
+
+head(data07)
+```
+
+
+```{r decimille størrelse}
+data07 %>% 
+  mutate(procent = (INDHOLD/Total18)*100) -> data07
+
+head(data07)
+#The new colloum i add to the existing dataset since i want to keep working with it.
+```
+I use the "mutate" function because i wan't to use data that already have included in my sheet. I use
+the mutate to make a new colloum that shows the percentage of the population that moves away. 
+
+Since i use a custom and very specific packages, the minicipalityDK and mapDK, they cannot read my data since the municipality names must match up 100%. I already cleaned up the special charracters in OpenRefine, but now i need to rename the colloums as well, and make them into lowercase.
+```{r omdøb til lille startbogstav}
+#for 2007
+data07 %>% 
+  mutate(FRAKOMMUNE = tolower(FRAKOMMUNE)) -> data07
+
+data07 %>% 
+  rename(kommune = FRAKOMMUNE) -> data07
+
+head(data07)
+```
+
+
+I here use mapDK to create a graph that shows the promille who moved. This is visuallied with dark blue as low values, and lighter is higher values. 
+
+```{r mapDK 2006}
+kommunekort1 <- mapDK(values = 'procent', id = 'kommune', data = data07)
+
+kommunekort1
+```
+
+Since i don't have the data for christiansoe and taarnby i will get a warning since they can't be included then. Also i have no value for Copenhagen, since you can't move from and too the same. 
+
+I find that this isn't very easy to read, no i will now try with the municipalityDK. 
+
+This way it becomes a little easier to read, and then the map is also interactive now, you can click on the municipalities and see the given value.
+
+```{r municipalityDK}
+kommunekort2 <- municipalityDK("procent", "kommune", data = data07, legend=T,pal = "GnBu") %>%
+  setMapWidgetStyle(list(background= "white"))
+
+kommunekort2
+```
+
+I wan't to make the contrast of colours even more clear and the map easier to use and understand. 
+```{r farver klar, echo = FALSE}
+library(RColorBrewer)
+
+colfunc <- colorRampPalette(c("#2C77BF", "red"))
+```
+
+```{r med nye farver}
+kommunekort3 <- municipalityDK("procent", "kommune", data = data07, legend=T,pal = colfunc(10)) %>%
+  setMapWidgetStyle(list(background= "white"))
+
+kommunekort3
+```
+
+The contrast now is from blue to red, and therfor much easier to undersand and read. 
+
+I see that Frederiksberg i the municipality with the highest values. 
+Now i want to examine if that has changed over time.
+
+
+I use the Danmarkstatistik API again and load the data:
+
+```{r frederiksbergapi}
+fre18 <- read_delim("https://api.statbank.dk/v1/data/FLY66/CSV?delimiter=Semicolon&TILKOMMUNE=101&FRAKOMMUNE=147&ALDER=18&Tid=*",show_col_types = FALSE)
+```
+
+I then want to do a simple plot with ggplot to see if this is normal values or an outlier.
+```{r  frederiksbergplot}
+ggplot(fre18) +  aes(x = TID, y = INDHOLD, colour = "red") + geom_path()
+```
+
+I can here see that the year 2008, isn't an outlier and the fact that for Frederiksberg is the most popuplar place to move is Copenhagen, seems very likely. 
+
+
+Then to test the relation between Copenhagen and the souther part of Sjælland:
+```{r frederiksberg}
+lol18 <- read_delim("https://api.statbank.dk/v1/data/FLY66/CSV?delimiter=Semicolon&TILKOMMUNE=101&FRAKOMMUNE=360&ALDER=18&Tid=*",show_col_types = FALSE)
+```
+
+I then want to do a simple plot with ggplot to see if this is normal values or an outlier.
+```{r plot lolland}
+ggplot(lol18) +  aes(x = TID, y = INDHOLD, colour = "red") + geom_path()
+```
+
+The graph shows a very simular development to the Frederiksberg graph, and indicates a decline up towards 2020. 
+
+Finally i want to test that my project is reproducable and i also wont to make my kommunekort3 comparabel with another visualization. 
+Therefor i want to make the same map, but with data for 2017, 10 years later, to see if there are changes. 
+
+
+```{r load data fra år 2017 antal}
+aar17 <- read_csv("aar1817ny.csv",show_col_types = FALSE)
+```
+
+```{r kommunedata fra 2017}
+data17 <- read_csv("Data17.csv",show_col_types = FALSE)
+```
+
+
+```{r from  data07 to aar1808 complete 2017, include=TRUE, eval=TRUE}
+data17 %>% 
+  mutate(Total18=aar17$INDHOLD) -> data17
+```
+
+```{r omdøb til lille startbogstav 2017, include=TRUE, eval=TRUE}
+#for 2017
+data17 %>% 
+  mutate(FRAKOMMUNE= tolower(FRAKOMMUNE)) -> data17
+
+data17 %>% 
+  rename(kommuner = FRAKOMMUNE ) -> data17
+```
+
+
+```{r decimille størrelse 2017, include=TRUE, eval=TRUE}
+data17 %>% 
+  mutate(procent = (INDHOLD/Total18)*100) -> data17
+#The new colloum i add to the existing dataset since i want to keep working with it.
+```
+
+```{r for 2017 igen, include=TRUE, eval=TRUE}
+kommunekort4 <- municipalityDK("procent", "kommuner", data = data17, legend=T,pal = colfunc(10)) %>%
+  setMapWidgetStyle(list(background= "white"))
+```
+
+I can easily reproduce my project with new data.
+
+```{r run last map 2017, include=TRUE, eval=TRUE}
+kommunekort4
+```
+And for comparrison with my original map for 2007.
+
+```{r run last map 2007, include=TRUE, eval=TRUE}
+kommunekort3
+```
