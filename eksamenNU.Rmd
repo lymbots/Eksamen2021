@@ -9,14 +9,15 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Packages needed
+
 ```{r Find the correct custom package, include=FALSE}
 #if(!require("devtools")) install.packages("devtools")
 #devtools::install_github("sebastianbarfort/mapDK")
 #devtools::install_github("56north/leafletDK") # install devtools if needed
 ```
 
-
-```{r install and load packages, include=FALSE, echo = FALSE}
+```{r install and load packages, include=TRUE, echo = FALSE}
 library(ggplot2)
 library(mapDK)
 library(tidyverse)
@@ -29,7 +30,7 @@ library(stringi)
 ```
 
 
-Loading of Data.
+# Loading of Data.
 The data had been downloaded with an API from "Danmarkstatistik" into OpenRefine and cleaned. 
 I will the rest of the modifying here in RStudio.
 
@@ -49,6 +50,8 @@ I again use an API from Danmarkstatistik to find the total population of 18 year
 aar1808 <- read_csv("antal18.csv", show_col_types = FALSE)
 head(aar1808)
 ```
+
+# Cleaning data to use
 
 I merge the two different datasets with the mutate function, as we can see below, the data07 set now has 5 variables
 ```{r mutate from data07 to aar1808}
@@ -81,9 +84,11 @@ data07 %>%
 head(data07)
 ```
 
+# Maps and graphs
 
 I here use mapDK to create a graph that shows the promille who moved. This is visuallied with dark blue as low values, and lighter is higher values. 
 
+## kommunekort1 - First municipality map 
 ```{r mapDK 2006}
 kommunekort1 <- mapDK(values = 'procent', id = 'kommune', data = data07)
 
@@ -96,12 +101,14 @@ I find that this isn't very easy to read, no i will now try with the municipalit
 
 This way it becomes a little easier to read, and then the map is also interactive now, you can click on the municipalities and see the given value.
 
+## kommunekort2 - New municipality map 
 ```{r municipalityDK}
 kommunekort2 <- municipalityDK("procent", "kommune", data = data07, legend=T,pal = "GnBu") %>%
   setMapWidgetStyle(list(background= "white"))
 
 kommunekort2
 ```
+
 
 I wan't to make the contrast of colours even more clear and the map easier to use and understand. 
 ```{r farver klar, echo = FALSE}
@@ -110,6 +117,8 @@ library(RColorBrewer)
 colfunc <- colorRampPalette(c("#2C77BF", "red"))
 ```
 
+
+## kommunekort3 - First municipality map with colours
 ```{r med nye farver}
 kommunekort3 <- municipalityDK("procent", "kommune", data = data07, legend=T,pal = colfunc(10)) %>%
   setMapWidgetStyle(list(background= "white"))
@@ -119,6 +128,8 @@ kommunekort3
 
 The contrast now is from blue to red, and therfor much easier to undersand and read. 
 
+
+# Graphs for Frederiksberg and Lolland via API
 I see that Frederiksberg i the municipality with the highest values. 
 Now i want to examine if that has changed over time.
 
@@ -149,6 +160,8 @@ ggplot(lol18) +  aes(x = TID, y = INDHOLD, colour = "red") + geom_path()
 
 The graph shows a very simular development to the Frederiksberg graph, and indicates a decline up towards 2020. 
 
+
+# Data from 2017 and maps to comparason
 Finally i want to test that my project is reproducable and i also wont to make my kommunekort3 comparabel with another visualization. 
 Therefor i want to make the same map, but with data for 2017, 10 years later, to see if there are changes. 
 
